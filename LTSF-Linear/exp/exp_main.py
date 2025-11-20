@@ -1,6 +1,7 @@
 from data_provider.data_factory import data_provider
 from exp.exp_basic import Exp_Basic
 from models import Informer, Autoformer, Transformer, DLinear, Linear, NLinear
+from models.HybridFreq import FreqHybrid
 from utils.tools import EarlyStopping, adjust_learning_rate, visual, test_params_flop
 from utils.metrics import metric
 
@@ -31,6 +32,7 @@ class Exp_Main(Exp_Basic):
             'DLinear': DLinear,
             'NLinear': NLinear,
             'Linear': Linear,
+            'FreqHybrid': FreqHybrid
         }
         model = model_dict[self.args.model].Model(self.args).float()
 
@@ -158,7 +160,7 @@ class Exp_Main(Exp_Basic):
                     else:
                         if self.args.output_attention:
                             outputs = self.model(batch_x, batch_x_mark, dec_inp, batch_y_mark)[0]
-                            
+
                         else:
                             outputs = self.model(batch_x, batch_x_mark, dec_inp, batch_y_mark, batch_y)
                     # print(outputs.shape,batch_y.shape)
@@ -211,7 +213,7 @@ class Exp_Main(Exp_Basic):
 
     def test(self, setting, test=0):
         test_data, test_loader = self._get_data(flag='test')
-        
+
         if test:
             print('loading model')
             self.model.load_state_dict(torch.load(os.path.join('./checkpoints/' + setting, 'checkpoint.pth')))
@@ -277,7 +279,7 @@ class Exp_Main(Exp_Basic):
         if self.args.test_flop:
             test_params_flop((batch_x.shape[1],batch_x.shape[2]))
             exit()
-            
+
         preds = np.concatenate(preds, axis=0)
         trues = np.concatenate(trues, axis=0)
         inputx = np.concatenate(inputx, axis=0)
@@ -348,7 +350,7 @@ class Exp_Main(Exp_Basic):
         preds = np.concatenate(preds, axis=0)
         if (pred_data.scale):
             preds = pred_data.inverse_transform(preds)
-        
+
         # result save
         folder_path = './results/' + setting + '/'
         if not os.path.exists(folder_path):
