@@ -421,9 +421,9 @@
 
         <div class="alert alert-negative">
           <p>
-            <strong>⚠️ Key Finding:</strong> FreqHybrid consistently
-            underperforms DLinear across all tested scenarios, despite its
-            significantly greater architectural complexity.
+            <strong> Key Finding:</strong> FreqHybrid consistently underperforms
+            DLinear across all tested scenarios, despite its significantly
+            greater architectural complexity.
           </p>
         </div>
 
@@ -474,7 +474,7 @@
         </table>
 
         <div class="figure">
-          <img src="images/bar_comparison.png" alt="Performance Comparison" />
+          <img src="images/electricity_bar.png" alt="Performance Comparison" />
           <p class="caption">
             <strong>Figure 1:</strong> MSE comparison across datasets and
             horizons. Lower is better. DLinear (blue) consistently outperforms
@@ -492,7 +492,17 @@
         </p>
 
         <div class="figure">
-          <img src="images/line_comparison.png" alt="Horizon Effect" />
+          <img src="images/train_val_electricity.png" alt="Training Curves" />
+          <p class="caption">
+            <strong>Figure 4:</strong> Training and validation loss curves for
+            Electricity dataset. DLinear shows smooth, efficient convergence
+            while FreqHybrid exhibits volatility.
+          </p>
+        </div>
+        <p>Other comments</p>
+
+        <div class="figure">
+          <img src="images/line_plot.png" alt="Horizon Effect" />
           <p class="caption">
             <strong>Figure 2:</strong> Performance vs. forecast horizon. The gap
             narrows at longer horizons but FreqHybrid never catches up.
@@ -500,7 +510,16 @@
         </div>
 
         <div class="figure">
-          <img src="images/improvement_heatmap.png" alt="Improvement Heatmap" />
+          <img src="images/weather_bar.png" alt="Training Curves" />
+          <p class="caption">
+            <strong>Figure 4:</strong> Training and validation loss curves for
+            Weatherdataset. DLinear shows smooth, efficient convergence while
+            FreqHybrid exhibits volatility.
+          </p>
+        </div>
+
+        <div class="figure">
+          <img src="images/heatmap.png" alt="Improvement Heatmap" />
           <p class="caption">
             <strong>Figure 3:</strong> Improvement heatmap showing FreqHybrid
             performance relative to DLinear. Red indicates DLinear wins (all
@@ -517,11 +536,11 @@
         </p>
 
         <div class="figure">
-          <img src="images/weather_training_curves.png" alt="Training Curves" />
+          <img src="images/train_val_weather.png" alt="Training Curves" />
           <p class="caption">
             <strong>Figure 4:</strong> Training and validation loss curves for
-            Weather dataset. DLinear shows smooth, efficient convergence while
-            FreqHybrid exhibits volatility.
+            Electricity dataset. DLinear shows smooth, efficient convergence
+            while FreqHybrid exhibits volatility.
           </p>
         </div>
 
