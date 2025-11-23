@@ -1,0 +1,811 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>FreqHybrid: When Complexity Doesn't Help</title>
+    <link rel="stylesheet" href="css/style.css" />
+  </head>
+  <body>
+    <div class="container">
+      <!-- Header -->
+      <header>
+        <h1>FreqHybrid: When Complexity Doesn't Help</h1>
+        <p class="subtitle">
+          A Study in Frequency-Aware Hybrid Architectures for Time Series
+          Forecasting
+        </p>
+        <div class="author-info">
+          <p>
+            <strong>Tina Zhang</strong> | December 2025 | 6.7960 (Deep Learning)
+          </p>
+        </div>
+      </header>
+
+      <!-- Abstract -->
+      <section class="abstract">
+        <h2>Abstract</h2>
+        <p>
+          We propose FreqHybrid, a frequency-aware hybrid architecture that
+          combines LSTM, Transformer, and linear components for electricity load
+          forecasting. Despite its principled design—explicit frequency
+          decomposition, architectural specialization, and adaptive
+          gating—FreqHybrid consistently underperforms the simple DLinear
+          baseline by 15-65% across multiple datasets and horizons. Through
+          rigorous analysis, we identify four failure modes: dataset linearity,
+          optimization complexity, parameter inefficiency, and weak seasonal
+          structure. These negative results provide valuable evidence about when
+          architectural complexity is justified and reinforce the importance of
+          strong baselines in time series research.
+        </p>
+      </section>
+
+      <!-- Table of Contents -->
+      <nav class="toc">
+        <h3>Contents</h3>
+        <ol>
+          <li><a href="#introduction">Introduction</a></li>
+          <li><a href="#background">Background & Related Work</a></li>
+          <li><a href="#method">Method: FreqHybrid Architecture</a></li>
+          <li><a href="#implementation">Implementation</a></li>
+          <li><a href="#results">Results</a></li>
+          <li><a href="#analysis">Analysis: Why Did FreqHybrid Fail?</a></li>
+          <li><a href="#discussion">Discussion and Future Work</a></li>
+        </ol>
+      </nav>
+
+      <!-- Section 1: Introduction -->
+      <section id="introduction">
+        <h2><span class="section-number">1.</span> Introduction</h2>
+
+        <p>
+          Electricity load forecasting is essential for maintaining a stable and
+          efficient power grid. Accurate predictions help operators balance
+          supply and demand, reduce operating costs, and better integrate
+          renewable energy sources such as wind and solar. However, electricity
+          demand is difficult to model because it contains structure at multiple
+          time scales: long-term trends driven by seasons and weather, daily and
+          weekly cycles tied to human activity, and short-term fluctuations
+          caused by noise or unexpected events.
+        </p>
+
+        <p>
+          Recent work has shown that increasing model complexity does not always
+          improve forecasting accuracy. Zeng et al. (2023) demonstrated that
+          <strong>DLinear</strong>, a simple linear model that separately learns
+          trend and seasonal components, outperforms many advanced Transformer
+          architectures on long-horizon forecasting tasks. This raises an
+          important question: rather than building deeper or more complicated
+          models, can we
+          <strong
+            >combine the strengths of different architectures in a more
+            principled way?</strong
+          >
+        </p>
+
+        <p>
+          Our hypothesis is that forecasting performance improves when different
+          frequency components of a time series are handled by models that match
+          their structure:
+        </p>
+
+        <ul>
+          <li>
+            <strong>Low-frequency trends</strong> are smooth and gradual, making
+            them well suited to LSTMs.
+          </li>
+          <li>
+            <strong>Mid-frequency seasonal patterns</strong>, such as daily and
+            weekly cycles, are better captured by Transformers.
+          </li>
+          <li>
+            <strong>Linear relationships</strong> across the full signal can be
+            handled effectively by simple linear layers.
+          </li>
+        </ul>
+
+        <p>
+          Rather than forcing a single architecture to learn everything,
+          explicitly separating these components may improve both accuracy and
+          interpretability.
+        </p>
+
+        <p>
+          Guided by this idea, we propose <strong>FreqHybrid</strong>, a
+          frequency-aware hybrid model. FreqHybrid decomposes each input series
+          using a moving average, then routes the trend to an LSTM, seasonality
+          to a Transformer, and the full sequence to a linear branch. A
+          learnable gating mechanism adaptively combines the three outputs,
+          allowing the model to emphasize different components depending on the
+          input.
+        </p>
+
+        <p>
+          We evaluate FreqHybrid on standard electricity and weather forecasting
+          benchmarks across multiple horizons and analyze when hybrid
+          architectures are likely to help or hurt performance. Our goal is to
+          understand whether frequency-aware specialization offers genuine
+          practical benefits over simple baselines such as DLinear, and to
+          provide insight into when added architectural complexity is justified.
+        </p>
+      </section>
+
+      <!-- Section 2: Background -->
+      <section id="background">
+        <h2>
+          <span class="section-number">2.</span> Background & Related Work
+        </h2>
+
+        <h3>2.1 Traditional Time Series Forecasting</h3>
+        <p>
+          Classical forecasting methods such as ARIMA and exponential smoothing
+          have long served as strong baselines for time series analysis. These
+          models are mathematically grounded, easy to interpret, and
+          computationally efficient. They work well when data is roughly linear,
+          stationary, or dominated by clear seasonal patterns. However, they
+          struggle with nonlinear dynamics, high-dimensional inputs, and
+          long-range dependencies—common features in modern electricity load
+          data influenced by weather, human behavior, and renewable energy
+          integration.
+        </p>
+
+        <h3>2.2 Neural Approaches to Time Series</h3>
+        <p>
+          Deep learning introduced models capable of learning nonlinear
+          relationships directly from data. LSTMs became a popular choice
+          because their gating mechanisms allow them to capture both short- and
+          long-term temporal dependencies. While LSTMs have shown success on
+          electricity load forecasting, their improvements over statistical
+          models are often modest.
+        </p>
+
+        <p>
+          Transformers brought further advances by replacing recurrence with
+          self-attention, enabling direct modeling of long-range interactions.
+          Several Transformer variants—such as Informer, Autoformer, FEDformer,
+          and PatchTST—adapted attention mechanisms to time series forecasting.
+          These models achieve strong results on certain benchmarks, but their
+          gains are inconsistent, especially on long-horizon forecasting tasks
+          where simple baselines sometimes perform just as well or better.
+        </p>
+
+        <h3>2.3 The DLinear Challenge</h3>
+        <p>
+          A major shift occurred with the introduction of
+          <strong>DLinear</strong> (Zeng et al., 2023), a surprisingly simple
+          model that decomposes a series into trend and seasonal components and
+          applies separate linear layers to each. Despite its simplicity,
+          DLinear outperformed many complex Transformer-based models on
+          long-term forecasting. The authors argued that its success comes from
+          aligning the architecture with the inherent structure of time series,
+          avoiding overfitting, and simplifying optimization.
+        </p>
+
+        <p>
+          Follow-up studies have confirmed that linear models remain highly
+          competitive on datasets dominated by smooth trends and clear
+          periodicity. These findings emphasize that
+          <strong>inductive bias</strong>—the assumptions built into a model
+          about the data—often matters more than model size or complexity.
+        </p>
+
+        <h3>2.4 Hybrid Architectures</h3>
+        <p>
+          To combine the strengths of different approaches, researchers have
+          explored hybrid models that stack or mix multiple architectures.
+          Common designs pair LSTMs with feed-forward networks, CNNs, or
+          Transformers. While these hybrids sometimes improve performance, they
+          typically feed similar inputs into all components and lack mechanisms
+          to distinguish which branch should handle which part of the signal.
+          Most also rely on fixed combination rules (e.g., concatenation), which
+          limits their flexibility.
+        </p>
+
+        <h3>2.5 Frequency Decomposition in Time Series</h3>
+        <p>
+          Frequency decomposition offers a natural way to separate multi-scale
+          patterns. Fourier transforms identify periodic components but lack
+          time localization. Wavelet transforms improve temporal localization
+          but require careful tuning. Empirical Mode Decomposition provides
+          adaptive decompositions but is computationally expensive.
+        </p>
+
+        <p>
+          In contrast, simple moving-average decomposition—used in DLinear—is
+          fast, interpretable, and easy to integrate into neural networks. It
+          effectively separates smooth trends from higher-frequency fluctuations
+          without adding significant overhead. Despite its simplicity, this
+          method performs competitively with more sophisticated decomposition
+          techniques on standard benchmarks.
+        </p>
+
+        <h3>2.6 Positioning of This Work</h3>
+        <p>
+          Our work builds on DLinear's insight that explicit decomposition can
+          strongly benefit forecasting. However, instead of applying linear
+          projections to the decomposed components, we route each component to
+          an architecture aligned with its structure: LSTMs for trends,
+          Transformers for seasonality, and a linear layer for the full signal.
+          To avoid fixed combination rules, we introduce a learnable gating
+          mechanism that adaptively weights each branch. This design allows us
+          to test whether frequency-specific specialization can outperform
+          purely linear baselines while remaining interpretable and
+          computationally manageable.
+        </p>
+      </section>
+
+      <!-- Section 3: Method -->
+      <section id="method">
+        <h2>
+          <span class="section-number">3.</span> Method: FreqHybrid Architecture
+        </h2>
+
+        <p>
+          FreqHybrid is based on a relatively simple idea: different parts of a
+          time series live at different frequencies, so they should be modeled
+          by different architectures. Instead of forcing one model to learn
+          everything, we first decompose the input and then route each component
+          to a specialized branch. The model has three parallel branches—an
+          LSTM, a Transformer, and a linear layer—whose predictions are combined
+          through a learned gating mechanism.
+        </p>
+
+        <h3>3.1 Architecture Overview</h3>
+        <p>FreqHybrid follows three design principles:</p>
+        <ol>
+          <li>
+            <strong>Frequency decomposition:</strong> separate trend and
+            seasonal components.
+          </li>
+          <li>
+            <strong>Architectural specialization:</strong> send each component
+            to a model suited for it.
+          </li>
+          <li>
+            <strong>Adaptive fusion:</strong> combine branch predictions using
+            learned weights.
+          </li>
+        </ol>
+
+        <p>
+          Given an input sequence, the model performs four steps: (1) decompose
+          the signal, (2) process each component with a dedicated branch, (3)
+          compute branch weights through a gating network, and (4) combine the
+          outputs.
+        </p>
+
+        <h3>3.2 Series Decomposition</h3>
+        <p>
+          We use a simple moving average (as in DLinear) to split the input into
+          <strong>trend</strong> and <strong>seasonal</strong> parts. The moving
+          average is efficient, differentiable, and easy to tune. It cleanly
+          separates the low-frequency structure from the higher-frequency
+          residuals, making it a natural first step for a hybrid model.
+        </p>
+
+        <h3>3.3 Specialized Branches</h3>
+
+        <p>
+          <strong>LSTM Branch (Trend):</strong> The trend component is smooth
+          and evolves slowly, so we model it with a multi-layer LSTM. The LSTM
+          captures long-term temporal dependencies and produces a compressed
+          representation of the trend, which is projected into a forecast.
+        </p>
+
+        <p>
+          <strong>Transformer Branch (Seasonality):</strong> Seasonal patterns
+          often involve long-range, periodic interactions—daily, weekly, or
+          monthly cycles. A Transformer encoder is well suited for this because
+          self-attention directly models relationships across all time steps.
+          After encoding, the representation is pooled and mapped to the
+          forecast horizon.
+        </p>
+
+        <p>
+          <strong>Linear Branch (Full Signal):</strong> Following the insights
+          from DLinear, we include a simple linear branch that forecasts using
+          direct linear projections of the input. This branch acts as: (1) a
+          strong baseline, (2) an anchor that stabilizes training, and (3) a
+          fallback path when nonlinear components are unnecessary.
+        </p>
+
+        <h3>3.4 Adaptive Gating</h3>
+        <p>
+          Rather than averaging branch outputs, we use a small MLP "gate" that
+          learns how much each branch should contribute. The gate receives: the
+          LSTM's final hidden state, the Transformer's pooled output, and simple
+          summary statistics of the trend and seasonal components. It outputs
+          three weights (one per branch), normalized by a softmax. This allows
+          the model to emphasize the Transformer when periodicity is strong,
+          rely on the LSTM during smooth trend shifts, or fall back on the
+          linear branch when simple extrapolation is best.
+        </p>
+
+        <h3>3.5 Weighted Fusion</h3>
+        <p>
+          The final prediction is a weighted sum of the three branch outputs.
+          This convex combination ensures stability and interpretability, since
+          the weights show which branch the model depends on for each input.
+        </p>
+
+        <h3>3.6 Training</h3>
+        <p>
+          FreqHybrid is trained end-to-end using mean squared error. We use
+          standard training techniques—Adam optimizer, learning rate scheduling,
+          early stopping, and gradient clipping. The gate, branches, and
+          decomposition all learn jointly, allowing each branch to specialize
+          naturally.
+        </p>
+
+        <h3>3.7 Model Complexity</h3>
+        <p>
+          FreqHybrid has roughly 300K parameters—larger than DLinear but still
+          much smaller than typical Transformer models. However, because it
+          contains both an LSTM and a Transformer, training is around six times
+          slower than DLinear, and inference is also more expensive.
+        </p>
+      </section>
+
+      <!-- Section 4: Implementation -->
+      <section id="implementation">
+        <h2><span class="section-number">4.</span> Implementation</h2>
+
+        <p>
+          We evaluate FreqHybrid on two standard multivariate time series
+          datasets to test whether frequency-aware specialization and adaptive
+          gating offer any benefits over strong linear baselines such as
+          DLinear.
+        </p>
+
+        <h3>Datasets</h3>
+        <p>We use two benchmarks with different levels of complexity:</p>
+        <ol>
+          <li>
+            <strong>Electricity Load Diagrams (2011–2014):</strong> Hourly
+            electricity consumption from 321 clients. The data contains clear
+            daily/weekly cycles, seasonal trends, and noise from weather and
+            demand fluctuations.
+          </li>
+          <li>
+            <strong>Weather:</strong> Hourly measurements of 21 meteorological
+            variables (temperature, humidity, pressure, wind, etc.). This
+            dataset is more nonlinear and involves multi-day weather systems.
+          </li>
+        </ol>
+
+        <p>
+          Both datasets are split chronologically into
+          <strong>60% training, 20% validation, and 20% testing</strong>,
+          following standard forecasting practice.
+        </p>
+
+        <h3>Forecasting Setup</h3>
+        <p>Models are trained using sliding windows with:</p>
+        <ul>
+          <li><strong>Input length:</strong> 96 time steps (4 days)</li>
+          <li>
+            <strong>Forecast horizons:</strong> 96 steps (4 days), 336 steps (14
+            days), 720 steps (30 days)
+          </li>
+        </ul>
+
+        <p>
+          Electricity experiments focus on the 96-hour horizon; Weather
+          experiments use all horizons to test long-range performance.
+        </p>
+
+        <h3>Model Configuration</h3>
+        <div class="config-table">
+          <p><strong>FreqHybrid Configuration:</strong></p>
+          <ul>
+            <li>Decomposition: 25-step moving average</li>
+            <li>LSTM: 3 layers, 256 hidden units</li>
+            <li>Transformer: 3 layers, d_model=512, 8 heads, FFN=2048</li>
+            <li>Linear: Separate projections for trend/seasonal</li>
+            <li>Gating: 3-layer MLP with softmax</li>
+            <li>Training: Adam (LR=3×10⁻⁴), batch=16, epochs≤15, patience=5</li>
+          </ul>
+
+          <p><strong>DLinear Baseline:</strong></p>
+          <ul>
+            <li>Decomposition: Moving average</li>
+            <li>Architecture: Separate linear layers for trend/seasonal</li>
+            <li>Training: Adam (LR=1×10⁻⁴), batch=16, epochs≤15, patience=5</li>
+          </ul>
+        </div>
+      </section>
+
+      <!-- Section 5: Results -->
+      <section id="results">
+        <h2><span class="section-number">5.</span> Results</h2>
+
+        <div class="alert alert-negative">
+          <p>
+            <strong>⚠️ Key Finding:</strong> FreqHybrid consistently
+            underperforms DLinear across all tested scenarios, despite its
+            significantly greater architectural complexity.
+          </p>
+        </div>
+
+        <table class="results-table">
+          <caption>
+            <strong>Table 1:</strong>
+            Forecasting Performance Comparison
+          </caption>
+          <thead>
+            <tr>
+              <th>Dataset</th>
+              <th>Horizon</th>
+              <th>DLinear MSE</th>
+              <th>FreqHybrid MSE</th>
+              <th>Difference</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Electricity</td>
+              <td>96h</td>
+              <td>0.2065</td>
+              <td>0.2881</td>
+              <td class="negative">+39.5%</td>
+            </tr>
+            <tr>
+              <td>Weather</td>
+              <td>96h</td>
+              <td>0.1987</td>
+              <td>0.3272</td>
+              <td class="negative">+64.6%</td>
+            </tr>
+            <tr>
+              <td>Weather</td>
+              <td>336h</td>
+              <td>0.2838</td>
+              <td>0.3812</td>
+              <td class="negative">+34.3%</td>
+            </tr>
+            <tr>
+              <td>Weather</td>
+              <td>720h</td>
+              <td>0.3461</td>
+              <td>0.3987</td>
+              <td class="negative">+15.2%</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div class="figure">
+          <img src="images/bar_comparison.png" alt="Performance Comparison" />
+          <p class="caption">
+            <strong>Figure 1:</strong> MSE comparison across datasets and
+            horizons. Lower is better. DLinear (blue) consistently outperforms
+            FreqHybrid (purple).
+          </p>
+        </div>
+
+        <p>
+          On the Electricity dataset at 96-hour horizon, DLinear achieves an MSE
+          of 0.207 and MAE of 0.295, while FreqHybrid obtains MSE of 0.288 and
+          MAE of 0.369—representing a <strong>39.5% degradation</strong> in MSE.
+          This result is particularly striking given that FreqHybrid employs
+          approximately three times as many parameters and requires six times
+          longer training time per epoch.
+        </p>
+
+        <div class="figure">
+          <img src="images/line_comparison.png" alt="Horizon Effect" />
+          <p class="caption">
+            <strong>Figure 2:</strong> Performance vs. forecast horizon. The gap
+            narrows at longer horizons but FreqHybrid never catches up.
+          </p>
+        </div>
+
+        <div class="figure">
+          <img src="images/improvement_heatmap.png" alt="Improvement Heatmap" />
+          <p class="caption">
+            <strong>Figure 3:</strong> Improvement heatmap showing FreqHybrid
+            performance relative to DLinear. Red indicates DLinear wins (all
+            scenarios).
+          </p>
+        </div>
+
+        <p>
+          <strong>Training Dynamics:</strong> On Electricity, DLinear converges
+          smoothly in 12 epochs with monotonically decreasing validation loss,
+          achieving a final validation loss of 0.185. In contrast, FreqHybrid
+          requires the full 15 epochs and exhibits more volatile training, with
+          final validation loss of 0.234—26.5% higher than DLinear.
+        </p>
+
+        <div class="figure">
+          <img src="images/weather_training_curves.png" alt="Training Curves" />
+          <p class="caption">
+            <strong>Figure 4:</strong> Training and validation loss curves for
+            Weather dataset. DLinear shows smooth, efficient convergence while
+            FreqHybrid exhibits volatility.
+          </p>
+        </div>
+
+        <p>
+          <strong>Horizon Effect:</strong> As prediction horizons increase from
+          96 to 720 hours, both models experience performance degradation (as
+          expected), but the relative gap between them shrinks. At 96 hours,
+          FreqHybrid is 64.6% worse; at 336 hours, 34.3% worse; and at 720
+          hours, 15.2% worse. This pattern suggests that while FreqHybrid's
+          additional complexity may capture some longer-term dependencies better
+          than short-term patterns, it remains insufficient to overcome
+          DLinear's fundamental efficiency advantage.
+        </p>
+      </section>
+
+      <!-- Section 6: Analysis -->
+      <section id="analysis">
+        <h2>
+          <span class="section-number">6.</span> Analysis: Why Did FreqHybrid
+          Fail?
+        </h2>
+
+        <p>
+          The consistent underperformance of FreqHybrid across all scenarios
+          stands in contrast to our initial hypothesis that frequency-aware
+          decomposition and architectural specialization would provide
+          advantages on datasets with strong periodic patterns. We identify four
+          primary factors that explain this failure.
+        </p>
+
+        <h3>6.1 Dataset Characteristics: Strong Local Linearity</h3>
+        <p>
+          Both Electricity and Weather datasets exhibit
+          <strong>strong local linearity</strong> at the tested
+          horizons—consecutive time steps are highly correlated, making simple
+          extrapolation highly effective. For instance, the temperature at hour
+          97 is typically very close to the temperature at hour 96, differing by
+          only small increments. This local smoothness means that linear models
+          can achieve strong performance simply by learning appropriate weighted
+          combinations of recent history.
+        </p>
+
+        <div class="alert alert-info">
+          <p>
+            <strong>Spectral Analysis:</strong> For Electricity, approximately
+            78% of spectral energy concentrates in the lowest 10% of
+            frequencies, indicating strong trend dominance. For Weather at
+            96-hour windows, daily cycles contribute only 15-20% of variance,
+            with the remainder attributable to slow-moving trends.
+          </p>
+        </div>
+
+        <h3>6.2 Optimization Complexity: Conflicting Gradients</h3>
+        <p>
+          FreqHybrid's three-branch architecture introduces
+          <strong>significant optimization challenges</strong>. During training,
+          the model must simultaneously learn: (1) how to decompose signals into
+          trend and seasonal components, (2) branch-specific representations for
+          each component, and (3) gating weights that adaptively combine branch
+          outputs. These three learning objectives can produce conflicting
+          gradients.
+        </p>
+
+        <p>
+          This is reflected in our training curves. While DLinear's validation
+          loss decreases monotonically and stabilizes by epoch 10-12,
+          FreqHybrid's validation loss exhibits irregular plateaus and
+          occasional increases, suggesting that the optimizer struggles to find
+          consistent descent directions.
+        </p>
+
+        <h3>6.3 Parameter Efficiency: More is Not Better</h3>
+        <p>
+          With approximately 300,000 parameters compared to DLinear's 100,000,
+          FreqHybrid has three times the model capacity. However, our results
+          demonstrate that
+          <strong
+            >parameter count does not translate to predictive
+            performance</strong
+          >
+          when the underlying patterns are simple. Instead, the extra parameters
+          increase the risk of overfitting to noise in the training data.
+        </p>
+
+        <p>
+          We observe evidence of this overfitting in the train-validation gap.
+          For Electricity, FreqHybrid achieves training MSE of 0.205 versus
+          validation MSE of 0.234—a gap of 14%. DLinear shows training MSE of
+          0.206 versus validation MSE of 0.185—actually performing
+          <em>better</em> on validation, suggesting it has learned genuinely
+          generalizable patterns.
+        </p>
+
+        <h3>6.4 The Specialization Hypothesis: When Does It Help?</h3>
+        <p>
+          Our results suggest that
+          <strong
+            >architectural specialization provides value only when different
+            components of the signal genuinely require different modeling
+            approaches</strong
+          >. In FreqHybrid's design, we hypothesized that trends need sequential
+          modeling (LSTM), seasonal patterns need attention mechanisms
+          (Transformer), and residuals need simple extrapolation (Linear).
+          However, this hypothesis fails when:
+        </p>
+        <ol>
+          <li>
+            <strong>Trends are simple:</strong> Electricity and Weather trends
+            are approximately linear over 96-720 hour windows
+          </li>
+          <li>
+            <strong>Seasonal patterns are weak:</strong> With only 15-20% of
+            variance in seasonality, the Transformer has little signal to model
+          </li>
+          <li>
+            <strong>Components are interdependent:</strong> True weather
+            patterns arise from coupled dynamics (e.g., temperature affects
+            humidity), which our decomposition artificially separates
+          </li>
+        </ol>
+      </section>
+
+      <!-- Section 7: Discussion -->
+      <section id="discussion">
+        <h2>
+          <span class="section-number">7.</span> Discussion and Future Work
+        </h2>
+
+        <h3>7.1 When Might Hybrid Architectures Succeed?</h3>
+        <p>
+          Our results do not imply that hybrid models are useless—only that they
+          must match the complexity of the data. Hybrid, frequency-aware models
+          may help in settings where:
+        </p>
+        <ul>
+          <li>
+            <strong>The data is highly nonlinear</strong>, such as financial
+            markets, turbulent systems, or traffic with cascading effects.
+          </li>
+          <li>
+            <strong>There are strong multi-scale patterns</strong>, such as
+            hourly + daily + weekly cycles of similar importance (e.g., retail
+            demand).
+          </li>
+          <li>
+            <strong>Forecast horizons are very long</strong> (1,000+ hours),
+            where simple linear extrapolation may break down.
+          </li>
+          <li>
+            <strong>Multiple data modalities must be fused</strong> (e.g., solar
+            generation + weather forecasts).
+          </li>
+        </ul>
+
+        <h3>7.2 Possible Simplifications</h3>
+        <p>
+          Instead of abandoning hybrid ideas, simpler variants may offer better
+          trade-offs:
+        </p>
+        <ul>
+          <li>
+            <strong>Two-branch hybrid:</strong> Use only LSTM + Linear (remove
+            Transformer)
+          </li>
+          <li>
+            <strong>Learnable decomposition:</strong> Replace fixed moving
+            average with learnable filters
+          </li>
+          <li>
+            <strong>Shared encoder:</strong> Use single encoder, then branch
+            into trend/seasonal heads
+          </li>
+          <li>
+            <strong>Progressive complexity:</strong> Start from DLinear and add
+            complexity only if validated
+          </li>
+        </ul>
+
+        <h3>7.3 Alternative Evaluation Metrics</h3>
+        <p>While we use MSE and MAE, other metrics may favor hybrid models:</p>
+        <ul>
+          <li>
+            <strong>Probabilistic forecasting:</strong> Better uncertainty
+            estimates (CRPS)
+          </li>
+          <li>
+            <strong>Extreme event prediction:</strong> Pinball loss for high
+            quantiles
+          </li>
+          <li>
+            <strong>Efficiency metrics:</strong> DLinear's 6× speed advantage
+            matters in deployment
+          </li>
+        </ul>
+
+        <h3>7.4 Broader Implications</h3>
+        <div class="alert alert-info">
+          <p><strong>Key Lessons:</strong></p>
+          <ul>
+            <li>Strong baselines are essential for meaningful comparisons</li>
+            <li>
+              Negative results prevent wasted effort and advance understanding
+            </li>
+            <li>Occam's razor applies: complexity needs justification</li>
+            <li>Domain knowledge should guide architectural choices</li>
+          </ul>
+        </div>
+
+        <h3>7.5 Limitations</h3>
+        <p>
+          Our study has several limitations: dataset diversity (only two
+          datasets with smooth dynamics), single hybrid design, limited
+          hyperparameter tuning, forecast horizons up to 720 hours, and
+          single-GPU experiments. Despite these constraints, our results provide
+          useful guidance on when hybrid architectures are—and are not—worth the
+          added complexity.
+        </p>
+      </section>
+
+      <!-- Section 8: Conclusion -->
+      <section id="conclusion">
+        <h2><span class="section-number">8.</span> Conclusion</h2>
+
+        <div class="conclusion-box">
+          <p>
+            We proposed FreqHybrid, a novel architecture that combines frequency
+            decomposition, specialized neural components (LSTM for trend,
+            Transformer for seasonality), and adaptive gating for time series
+            forecasting. Through comprehensive evaluation on Electricity and
+            Weather datasets across multiple horizons, we found that FreqHybrid
+            <strong>consistently underperforms</strong> the simple DLinear
+            baseline by 15-65%, despite using 3× more parameters and 6× more
+            training time.
+          </p>
+
+          <p>This negative result provides valuable insights:</p>
+          <ol>
+            <li>
+              Architectural complexity does not automatically improve
+              forecasting performance
+            </li>
+            <li>
+              Linear models remain highly competitive when target patterns are
+              locally smooth
+            </li>
+            <li>
+              Specialized components provide value only when different signal
+              components genuinely require different modeling approaches
+            </li>
+            <li>
+              Optimization challenges in multi-branch architectures can offset
+              representational benefits
+            </li>
+          </ol>
+
+          <p>
+            Our work reinforces the importance of strong baselines and honest
+            evaluation in machine learning research. While FreqHybrid failed on
+            these datasets, our analysis identifies promising directions—highly
+            nonlinear systems, strong multi-scale periodicity, very long
+            horizons—where frequency-aware hybrids might succeed.
+          </p>
+
+          <blockquote>
+            <p>
+              <strong>Key Takeaway:</strong> In time series forecasting, as in
+              science generally, Occam's razor applies—simple models should be
+              preferred unless complexity demonstrably improves performance.
+            </p>
+          </blockquote>
+        </div>
+      </section>
+
+      <!-- Footer -->
+      <footer>
+        <hr />
+        <p>
+          <em
+            >Thank you for reading! Questions or comments? Feel free to reach
+            out.</em
+          >
+        </p>
+        <p style="text-align: center; color: #666; font-size: 0.9em"></p>
+      </footer>
+    </div>
+  </body>
+</html>
