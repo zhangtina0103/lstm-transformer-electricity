@@ -1,6 +1,6 @@
 from data_provider.data_factory import data_provider
 from exp.exp_basic import Exp_Basic
-from models import Informer, Autoformer, Transformer, DLinear, Linear, NLinear, FreqHybrid
+from models import Informer, Autoformer, Transformer, DLinear, Linear, NLinear
 from utils.tools import EarlyStopping, adjust_learning_rate, visual, test_params_flop
 from utils.metrics import metric
 
@@ -11,11 +11,20 @@ import torch.nn as nn
 from torch import optim
 
 import os
+import sys
 import time
 
 import warnings
 import matplotlib.pyplot as plt
 import numpy as np
+
+# Import FreqHybrid from new location
+sys.path.append(os.path.join(os.path.dirname(__file__), '../..'))
+from FreqHybrid import Model as FreqHybridModel
+
+# Create a module-like object to match the pattern used by other models
+class FreqHybrid:
+    Model = FreqHybridModel
 
 warnings.filterwarnings('ignore')
 
