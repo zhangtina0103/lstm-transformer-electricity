@@ -274,6 +274,29 @@ tbody tr:hover {
   transform: translateZ(0);
 }
 
+/* Architecture diagram - adjusted size */
+.figure img[src*="Time Series Decomposition.png"] {
+  max-width: 55%;
+  max-height: 500px;
+}
+
+/* Metric formula images - smaller, inline display */
+.metric-formulas {
+  display: flex;
+  gap: 20px;
+  justify-content: center;
+  align-items: center;
+  margin: 20px 0;
+  flex-wrap: wrap;
+}
+
+.metric-formula {
+  max-width: 200px;
+  max-height: 100px;
+  width: auto;
+  height: auto;
+}
+
 /* Training curve images - full size */
 .figure img[src*="train_val_electricity.png"],
 .figure img[src*="train_val_weather.png"] {

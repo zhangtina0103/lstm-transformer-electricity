@@ -285,6 +285,13 @@
           outputs to produce a forecast.
         </p>
 
+        <div class="figure">
+          <img src="images/Time Series Decomposition.png" alt="FreqHybrid Architecture Diagram" />
+          <p class="caption">
+            <strong>Figure 1:</strong> FreqHybrid architecture. The input time series is decomposed into trend and seasonal components using a moving average. The trend component is processed by an LSTM branch, while the seasonal component is handled by a Transformer branch. A linear branch processes both components. An adaptive gating network combines the three branch outputs using learned weights.
+          </p>
+        </div>
+
         <h3>3.2 Series Decomposition</h3>
         <p>
           We use a simple moving average, following the approach used in
@@ -460,6 +467,17 @@
       <section id="results">
         <h2><span class="section-number">5.</span> Results</h2>
 
+        <h3>5.1 Evaluation Metrics</h3>
+        <p>
+          We evaluate model performance using two standard metrics: Mean Squared Error (MSE) and Mean Absolute Error (MAE). MSE measures the average of squared differences between predictions and true values, giving more weight to larger errors. MAE measures the average absolute difference, providing a more interpretable measure of average prediction error. Both metrics are reported across all experiments.
+        </p>
+
+        <div class="metric-formulas">
+          <img src="images/mse.png" alt="Mean Squared Error Formula" class="metric-formula" />
+          <img src="images/mae.png" alt="Mean Absolute Error Formula" class="metric-formula" />
+        </div>
+
+        <h3>5.2 Performance Comparison</h3>
         <div class="alert alert-negative">
           <p>
             <strong> Key Finding:</strong> FreqHybrid consistently underperforms
@@ -527,7 +545,7 @@
         <div class="figure">
           <img src="images/electricity_bar.png" alt="Performance Comparison" />
           <p class="caption">
-            <strong>Figure 1:</strong> Mean squared error (MSE) comparison across datasets and
+            <strong>Figure 2:</strong> Mean squared error (MSE) comparison across datasets and
             forecast horizons. Lower values indicate better performance. DLinear (blue) consistently achieves
             lower error than FreqHybrid (purple).
           </p>
@@ -540,7 +558,7 @@
           This gap is notable because FreqHybrid uses roughly three times more parameters and requires about six times longer training time per epoch.
         </p>
 
-        <h3>5.1 Performance Difference Analysis</h3>
+        <h3>5.3 Performance Difference Analysis</h3>
         <p>
           FreqHybrid consistently underperforms DLinear across all four experimental conditions: Electricity 96h (+39.5% MSE), Weather 96h (+64.6% MSE), Weather 336h (+34.3% MSE), and Weather 720h (+15.2% MSE). The direction of the difference is consistent across all conditions—FreqHybrid never outperforms DLinear in any of the tested scenarios.
         </p>
@@ -554,7 +572,7 @@
         <div class="figure">
           <img src="images/train_val_electricity.png" alt="Electricity Training and Validation Curves" />
           <p class="caption">
-            <strong>Figure 2:</strong> Training and validation loss curves for the
+            <strong>Figure 3:</strong> Training and validation loss curves for the
             Electricity dataset. DLinear converges quickly and smoothly, while FreqHybrid shows slower improvement and higher variability during training.
           </p>
         </div>
@@ -563,7 +581,7 @@
         <div class="figure">
           <img src="images/line_plot.png" alt="Horizon Effect" />
           <p class="caption">
-            <strong>Figure 3: </strong> Forecasting mean squared error (MSE) on the Weather dataset across different horizons. The performance gap between DLinear and FreqHybrid decreases at longer horizons, but FreqHybrid remains consistently worse.
+            <strong>Figure 4: </strong> Forecasting mean squared error (MSE) on the Weather dataset across different horizons. The performance gap between DLinear and FreqHybrid decreases at longer horizons, but FreqHybrid remains consistently worse.
           </p>
         </div>
         <p>
@@ -573,7 +591,7 @@ As the forecast horizon increases from 96 to 720 hours, both models show higher 
         <div class="figure">
           <img src="images/weather_bar.png" alt="Training Curves" />
           <p class="caption">
-            <strong>Figure 4:</strong> MSE on the Weather dataset across three forecasting horizons. DLinear maintains lower error at every horizon, while FreqHybrid consistently underperforms.
+            <strong>Figure 5:</strong> MSE on the Weather dataset across three forecasting horizons. DLinear maintains lower error at every horizon, while FreqHybrid consistently underperforms.
           </p>
         </div>
 
@@ -585,7 +603,7 @@ The bar plot shows that DLinear achieves lower MSE than FreqHybrid at 96, 336, a
         <div class="figure">
           <img src="images/heatmap.png" alt="Improvement Heatmap" />
           <p class="caption">
-            <strong>Figure 5:</strong> Heatmap showing FreqHybrid's relative performance compared to DLinear. Values indicate percentage difference in MSE (positive means FreqHybrid is better). All cells are negative, which means that DLinear outperforms FreqHybrid at every forecast horizon.
+            <strong>Figure 6:</strong> Heatmap showing FreqHybrid's relative performance compared to DLinear. Values indicate percentage difference in MSE (positive means FreqHybrid is better). All cells are negative, which means that DLinear outperforms FreqHybrid at every forecast horizon.
           </p>
         </div>
 
@@ -596,7 +614,7 @@ The bar plot shows that DLinear achieves lower MSE than FreqHybrid at 96, 336, a
         <div class="figure">
           <img src="images/train_val_weather.png" alt="Training Curves" />
           <p class="caption">
-            <strong>Figure 6:</strong> Training and validation loss curves on the Weather dataset. DLinear shows stable, monotonic improvement, while FreqHybrid displays slower convergence and greater variability.
+            <strong>Figure 7:</strong> Training and validation loss curves on the Weather dataset. DLinear shows stable, monotonic improvement, while FreqHybrid displays slower convergence and greater variability.
           </p>
         </div>
 
