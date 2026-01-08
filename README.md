@@ -1,4 +1,4 @@
-# Hybrid Frequency Modeling for Time Series Forecasting (6.7960 Deep Learning Final Project)
+# Hybrid Frequency Modeling for Time Series Forecasting
 
 This repository contains the implementation and evaluation of FreqHybrid, a frequency-aware hybrid architecture for time series forecasting. FreqHybrid combines LSTM, Transformer, and linear components to handle different frequency components of time series data.
 
